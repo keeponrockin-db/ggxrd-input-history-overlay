@@ -7,17 +7,30 @@
 
   #p1-inputs, #p2-inputs {
     position: absolute;
-    top: 19.45vh;
+    top: 19.2vh;
   }
 
-  #p1-inputs { left: 3vh; }
-  #p2-inputs { right: 2.9vh; }
+  #p1-inputs { left: 2.75vh; }
+  #p2-inputs { right: 2.75vh; }
   .frame { display: flex; }
   #p2-inputs .frame { justify-content: flex-end; }
 
+  .heldTime, .input {  
+    margin: 0.225vh 0.1vh;
+  }
+
+  .heldTime {
+    font-family: 'Segoe UI';
+    font-size: 1.8em;
+    font-weight: bolder;
+    text-align: center;
+    color: white;
+    -webkit-text-stroke: 2px black;
+  }
+
   .input {
-    width: 4.1vh;
-    height: 4.45vh;
+    width: 4vh;
+    height: 4vh;
   }
 
   .held {
@@ -37,8 +50,11 @@
   <div id="p1-inputs">
     <ul>
       <li class="frame" v-for="frame in inputHistory[0]">
-        <div class="input" v-for="input in frame">
+        <div class="input" v-for="input in frame.inputs">
           <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" />
+        </div>
+        <div class="heldTime">
+          {{ frame.heldTime }}
         </div>
       </li>
     </ul>
@@ -46,7 +62,10 @@
   <div id="p2-inputs">
     <ul>
       <li class="frame" v-for="frame in inputHistory[1]">
-        <div class="input" v-for="input in frame">
+        <div class="heldTime">
+          {{ frame.heldTime }}
+        </div>
+        <div class="input" v-for="input in frame.inputs">
           <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" />
         </div>
       </li>
@@ -134,8 +153,8 @@
               if (newInputs.length === 0) {
                 this.idleTimes[player]++;
               } else {
-                if (this.idleTimes[player] > 40) {
-                  if (this.inputHistory[player].unshift([{ name: "spacer" }]) > 18) {
+                if (this.idleTimes[player] > 0) {
+                  if (this.inputHistory[player].unshift({ inputs: [{ name: "spacer" }], heldTime: this.idleTimes[player] }) > 18) {
                     this.inputHistory[player].pop();
                   }
                 }
@@ -149,8 +168,15 @@
                 allHeld &= input.held;
               });
 
-              if (!allHeld) {
-                if (this.inputHistory[player].unshift(newInputs.sort(sortingAlgorithms[player])) > 18) {
+              if (allHeld) {
+                if (newInputs.length !== 0) {
+                  this.inputHistory[player][0].heldTime++;
+                }
+              } else {
+                if (this.inputHistory[player].unshift({
+                  inputs: newInputs.sort(sortingAlgorithms[player]),
+                  heldTime: 1
+                }) > 18) {
                   this.inputHistory[player].pop();
                 }
               }
