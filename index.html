@@ -1,0 +1,169 @@
+<style>
+  ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #p1-inputs, #p2-inputs {
+    position: absolute;
+    top: 19.45vh;
+  }
+
+  #p1-inputs { left: 3vh; }
+  #p2-inputs { right: 2.9vh; }
+  .frame { display: flex; }
+  #p2-inputs .frame { justify-content: flex-end; }
+
+  .input {
+    width: 4.1vh;
+    height: 4.45vh;
+  }
+
+  .held {
+    filter: brightness(60%);
+  }
+</style>
+
+<script type="importmap">
+  {
+    "imports": {
+      "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+    }
+  }
+</script>
+
+<div id="app">
+  <div id="p1-inputs">
+    <ul>
+      <li class="frame" v-for="frame in inputHistory[0]">
+        <div class="input" v-for="input in frame">
+          <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" />
+        </div>
+      </li>
+    </ul>
+  </div>
+  <div id="p2-inputs">
+    <ul>
+      <li class="frame" v-for="frame in inputHistory[1]">
+        <div class="input" v-for="input in frame">
+          <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" />
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<script type="module">
+  import { createApp } from 'vue'
+
+  createApp({
+    data() {
+      return {
+        connection: null,
+        inputHistory: [[], []],
+        prevInputStates: [{}, {}],
+        idleTimes: [0, 0],
+        attackButtons: ["p", "k", "s", "h", "d"],
+        p1Sort: (a, b) => {
+          if (!Number.isNaN(parseInt(a.name))) { return -1 } 
+          else if (!Number.isNaN(parseInt(b.name))) { return 1 }
+          else if (this.attackButtons.indexOf(a.name) < this.attackButtons.indexOf(b.name)) { return -1 }
+          else { return 1 }
+        },
+        p2Sort: (a, b) => {
+          if (!Number.isNaN(parseInt(a.name))) { return 1 }
+          else if (!Number.isNaN(parseInt(b.name))) { return -1 }
+          else if (this.attackButtons.indexOf(a.name) < this.attackButtons.indexOf(b.name)) { return -1} 
+          else { return 1 }
+        },
+        mapDirections: (inputState) => {
+          let direction = 5;
+
+          if (inputState.down) { direction -= 3; }
+          if (inputState.up) { direction += 3; }
+          if (inputState.left) { direction -= 1; }
+          if (inputState.right) { direction += 1; }
+
+          return direction;
+        },
+        mapInputs: (newInputState, prevInputState) => {
+          let inputs = [];
+          Object.keys(newInputState).forEach((input) => {
+            if (this.attackButtons.includes(input) && newInputState[input]) {
+              inputs.push({
+                name: input,
+                held: prevInputState[input]
+              })
+            }
+          });
+          
+          let direction = this.mapDirections(newInputState);
+          if (direction !== 5) {
+            inputs.push({
+              name: direction,
+              held: this.mapDirections(prevInputState) === direction
+            })
+          }
+          return inputs;
+        },
+        resetState: () => {
+          this.inputHistory = [[], []];
+          this.prevInputStates = [{}, {}];
+          this.idleTimes = [0, 0];
+        }
+      }
+    },
+    created() {
+      this.connection = new WebSocket("ws://localhost:6651")
+
+      this.connection.addEventListener("message", (event) => {
+        let response = JSON.parse(event.data)
+
+        switch(response.event) {
+          case "ggxrd_stateUpdate":
+            let inputStates = [response.data.player_1.input_state, response.data.player_2.input_state];
+            let sortingAlgorithms = [this.p1Sort, this.p2Sort];
+
+            [0, 1].forEach((player) => {
+              let inputState = inputStates[player];
+              let prevInputState = this.prevInputStates[player];
+
+              let newInputs = this.mapInputs(inputState, prevInputState);
+
+              if (newInputs.length === 0) {
+                this.idleTimes[player]++;
+              } else {
+                if (this.idleTimes[player] > 40) {
+                  if (this.inputHistory[player].unshift([{ name: "spacer" }]) > 18) {
+                    this.inputHistory[player].pop()
+                  }
+                }
+
+                this.idleTimes[player] = 0;
+              }
+
+              let allHeld = true;
+
+              newInputs.forEach((input) => {
+                allHeld &= input.held;
+              });
+
+              if (!allHeld) {
+                if (this.inputHistory[player].unshift(newInputs.sort(sortingAlgorithms[player])) > 18) {
+                  this.inputHistory[player].pop()
+                }
+              }
+
+              this.prevInputStates[player] = inputState;
+            });
+
+            break;
+          case "ggxrd_gamestateDeinitializedEvent":
+            this.resetState();
+            break;
+        }
+      });
+    }
+  }).mount('#app')
+</script>
