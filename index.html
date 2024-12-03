@@ -1,4 +1,8 @@
 <style>
+  [v-cloak] {
+    display: none;
+  }
+
   ul {
     list-style-type: none;
     padding: 0;
@@ -13,7 +17,7 @@
   #p1-inputs { left: 2.75vh; }
   #p2-inputs { right: 2.75vh; }
   .frame { display: flex; }
-  #p2-inputs .frame { justify-content: flex-end; }
+  #p2-inputs .frame { flex-direction: row-reverse; }
 
   .heldTime, .input {  
     margin: 0.225vh 0.1vh;
@@ -36,6 +40,11 @@
   .held {
     filter: brightness(60%);
   }
+
+  .hidden {
+    color: rgba(0,0,0,0);
+    font-size: 0;
+  }
 </style>
 
 <script type="importmap">
@@ -46,35 +55,37 @@
   }
 </script>
 
-<div id="app">
+<div id="app" v-cloak>
   <div id="p1-inputs">
     <ul>
       <li class="frame" v-for="frame in inputHistory[0]">
-        <div class="input" v-for="input in frame.inputs">
-          <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" />
-        </div>
-        <div class="heldTime">
+        <span class="input" v-for="input in frame.inputs">
+          <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" :alt="input.name" />
+        </span>
+        <span class="hidden">*</span>
+        <span class="heldTime">
           {{ frame.heldTime }}
-        </div>
+        </span>
       </li>
     </ul>
   </div>
   <div id="p2-inputs">
     <ul>
       <li class="frame" v-for="frame in inputHistory[1]">
-        <div class="heldTime">
+        <span class="input" v-for="input in frame.inputs">
+          <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" :alt="input.name" />
+        </span>
+        <span class="hidden">*</span>
+        <span class="heldTime">
           {{ frame.heldTime }}
-        </div>
-        <div class="input" v-for="input in frame.inputs">
-          <img :class="input.held ? 'held' : ''" :src="`icons/${input.name}.png`" />
-        </div>
+        </span>
       </li>
     </ul>
   </div>
 </div>
 
 <script type="module">
-  import { createApp } from 'vue'
+  import { createApp } from 'vue';
 
   createApp({
     data() {
@@ -91,9 +102,9 @@
           else { return 1; }
         },
         p2Sort: (a, b) => {
-          if (!Number.isNaN(parseInt(a.name))) { return 1; }
-          else if (!Number.isNaN(parseInt(b.name))) { return -1; }
-          else if (this.attackButtons.indexOf(a.name) < this.attackButtons.indexOf(b.name)) { return -1; } 
+          if (!Number.isNaN(parseInt(a.name))) { return -1; }
+          else if (!Number.isNaN(parseInt(b.name))) { return 1; }
+          else if (this.attackButtons.indexOf(a.name) > this.attackButtons.indexOf(b.name)) { return -1; } 
           else { return 1; }
         },
         mapDirections: (inputState) => {
@@ -130,66 +141,79 @@
           this.inputHistory = [[], []];
           this.prevInputStates = [{}, {}];
           this.idleTimes = [0, 0];
+        },
+        handleGGXrdModEvent: (event) => {
+          let response = JSON.parse(event.data);
+
+          switch(response.event) {
+            case "ggxrd_stateUpdate":
+              let inputStates = [response.data.player_1.input_state, response.data.player_2.input_state];
+              let sortingAlgorithms = [this.p1Sort, this.p2Sort];
+
+              [0, 1].forEach((player) => {
+                let inputState = inputStates[player];
+                let prevInputState = this.prevInputStates[player];
+
+                let newInputs = this.mapInputs(inputState, prevInputState);
+
+                if (newInputs.length === 0) {
+                  this.idleTimes[player]++;
+                } else {
+                  if (this.idleTimes[player] > 0) {
+                    if (this.inputHistory[player].unshift({ inputs: [{ name: "spacer" }], heldTime: this.idleTimes[player] }) > 18) {
+                      this.inputHistory[player].pop();
+                    }
+                  }
+
+                  this.idleTimes[player] = 0;
+                }
+
+                let allHeld = true;
+
+                newInputs.forEach((input) => {
+                  allHeld &= input.held;
+                });
+
+                if (allHeld) {
+                  if (newInputs.length !== 0) {
+                    this.inputHistory[player][0].heldTime++;
+                  }
+                } else {
+                  if (this.inputHistory[player].unshift({
+                    inputs: newInputs.sort(sortingAlgorithms[player]),
+                    heldTime: 1
+                  }) > 18) {
+                    this.inputHistory[player].pop();
+                  }
+                }
+
+                this.prevInputStates[player] = inputState;
+              });
+              break;
+
+            case "ggxrd_gamestateDeinitializedEvent":
+              this.resetState();
+              break;
+          }
+        },
+        handleClipboardEvent: (event) => {
+          let selection = document.getSelection().toString().split("\r\n").reverse().map(i => {
+            let input = i.trim().replace("spacer", "5");
+            if (Number.isNaN(Number.parseInt(input.charAt(0)))) { input = "5" + input; }
+            return input
+          });
+
+          console.log(selection);
+
+          event.clipboardData.setData("text/plain", selection);
+          event.preventDefault();
         }
       }
     },
     created() {
       this.connection = new WebSocket("ws://localhost:6651");
-
-      this.connection.addEventListener("message", (event) => {
-        let response = JSON.parse(event.data);
-
-        switch(response.event) {
-          case "ggxrd_stateUpdate":
-            let inputStates = [response.data.player_1.input_state, response.data.player_2.input_state];
-            let sortingAlgorithms = [this.p1Sort, this.p2Sort];
-
-            [0, 1].forEach((player) => {
-              let inputState = inputStates[player];
-              let prevInputState = this.prevInputStates[player];
-
-              let newInputs = this.mapInputs(inputState, prevInputState);
-
-              if (newInputs.length === 0) {
-                this.idleTimes[player]++;
-              } else {
-                if (this.idleTimes[player] > 0) {
-                  if (this.inputHistory[player].unshift({ inputs: [{ name: "spacer" }], heldTime: this.idleTimes[player] }) > 18) {
-                    this.inputHistory[player].pop();
-                  }
-                }
-
-                this.idleTimes[player] = 0;
-              }
-
-              let allHeld = true;
-
-              newInputs.forEach((input) => {
-                allHeld &= input.held;
-              });
-
-              if (allHeld) {
-                if (newInputs.length !== 0) {
-                  this.inputHistory[player][0].heldTime++;
-                }
-              } else {
-                if (this.inputHistory[player].unshift({
-                  inputs: newInputs.sort(sortingAlgorithms[player]),
-                  heldTime: 1
-                }) > 18) {
-                  this.inputHistory[player].pop();
-                }
-              }
-
-              this.prevInputStates[player] = inputState;
-            });
-            break;
-
-          case "ggxrd_gamestateDeinitializedEvent":
-            this.resetState();
-            break;
-        }
-      });
+      this.connection.addEventListener("message", this.handleGGXrdModEvent);
+      document.addEventListener("copy", this.handleClipboardEvent);
     }
-  }).mount('#app')
+  }).mount('#app');
 </script>
