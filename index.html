@@ -87,6 +87,9 @@
 <script type="module">
   import { createApp } from 'vue';
 
+  const INPUT_LIMIT = 3000;
+  const ATTACK_BUTTONS = ["p", "k", "s", "h", "d"];
+
   createApp({
     data() {
       return {
@@ -94,17 +97,16 @@
         inputHistory: [[], []],
         prevInputStates: [{}, {}],
         idleTimes: [0, 0],
-        attackButtons: ["p", "k", "s", "h", "d"],
         p1Sort: (a, b) => {
           if (!Number.isNaN(parseInt(a.name))) { return -1; } 
           else if (!Number.isNaN(parseInt(b.name))) { return 1; }
-          else if (this.attackButtons.indexOf(a.name) < this.attackButtons.indexOf(b.name)) { return -1; }
+          else if (ATTACK_BUTTONS.indexOf(a.name) < ATTACK_BUTTONS.indexOf(b.name)) { return -1; }
           else { return 1; }
         },
         p2Sort: (a, b) => {
           if (!Number.isNaN(parseInt(a.name))) { return -1; }
           else if (!Number.isNaN(parseInt(b.name))) { return 1; }
-          else if (this.attackButtons.indexOf(a.name) > this.attackButtons.indexOf(b.name)) { return -1; } 
+          else if (ATTACK_BUTTONS.indexOf(a.name) > ATTACK_BUTTONS.indexOf(b.name)) { return -1; } 
           else { return 1; }
         },
         mapDirections: (inputState) => {
@@ -120,7 +122,7 @@
         mapInputs: (newInputState, prevInputState) => {
           let inputs = [];
           Object.keys(newInputState).forEach((input) => {
-            if (this.attackButtons.includes(input) && newInputState[input]) {
+            if (ATTACK_BUTTONS.includes(input) && newInputState[input]) {
               inputs.push({
                 name: input,
                 held: prevInputState[input]
@@ -160,7 +162,10 @@
                   this.idleTimes[player]++;
                 } else {
                   if (this.idleTimes[player] > 0) {
-                    if (this.inputHistory[player].unshift({ inputs: [{ name: "spacer" }], heldTime: this.idleTimes[player] }) > 18) {
+                    if (this.inputHistory[player].unshift({ 
+                      inputs: [{ name: "spacer" }], 
+                      heldTime: this.idleTimes[player]
+                    }) > INPUT_LIMIT) {
                       this.inputHistory[player].pop();
                     }
                   }
@@ -182,7 +187,7 @@
                   if (this.inputHistory[player].unshift({
                     inputs: newInputs.sort(sortingAlgorithms[player]),
                     heldTime: 1
-                  }) > 18) {
+                  }) > INPUT_LIMIT) {
                     this.inputHistory[player].pop();
                   }
                 }
@@ -202,8 +207,6 @@
             if (Number.isNaN(Number.parseInt(input.charAt(0)))) { input = "5" + input; }
             return input
           });
-
-          console.log(selection);
 
           event.clipboardData.setData("text/plain", selection);
           event.preventDefault();
