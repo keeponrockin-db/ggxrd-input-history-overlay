@@ -96,7 +96,7 @@
         connection: null,
         inputHistory: [[], []],
         prevInputStates: [{}, {}],
-        idleTimes: [0, 0],
+        idleFrames: [0, 0],
         p1Sort: (a, b) => {
           if (!Number.isNaN(parseInt(a.name))) { return -1; } 
           else if (!Number.isNaN(parseInt(b.name))) { return 1; }
@@ -142,13 +142,14 @@
         resetState: () => {
           this.inputHistory = [[], []];
           this.prevInputStates = [{}, {}];
-          this.idleTimes = [0, 0];
+          this.idleFrames = [0, 0];
         },
         handleGGXrdModEvent: (event) => {
           let response = JSON.parse(event.data);
 
           switch(response.event) {
             case "ggxrd_stateUpdate":
+              let currentFrame = Number.parseInt(response.data.current_frame);
               let inputStates = [response.data.player_1.input_state, response.data.player_2.input_state];
               let sortingAlgorithms = [this.p1Sort, this.p2Sort];
 
@@ -158,19 +159,18 @@
 
                 let newInputs = this.mapInputs(inputState, prevInputState);
 
-                if (newInputs.length === 0) {
-                  this.idleTimes[player]++;
-                } else {
-                  if (this.idleTimes[player] > 0) {
-                    if (this.inputHistory[player].unshift({ 
-                      inputs: [{ name: "spacer" }], 
-                      heldTime: this.idleTimes[player]
+                if (newInputs.length > 0) {
+                  if (this.idleFrames[player] < currentFrame) {
+                    if (this.inputHistory[player].unshift({
+                      currentFrame: currentFrame,
+                      inputs: [{ name: "spacer" }],
+                      heldTime: currentFrame - this.idleFrames[player]
                     }) > INPUT_LIMIT) {
                       this.inputHistory[player].pop();
                     }
                   }
 
-                  this.idleTimes[player] = 0;
+                  this.idleFrames[player] = currentFrame + 1;
                 }
 
                 let allHeld = true;
@@ -181,10 +181,11 @@
 
                 if (allHeld) {
                   if (newInputs.length !== 0) {
-                    this.inputHistory[player][0].heldTime++;
+                    this.inputHistory[player][0].heldTime = currentFrame - this.inputHistory[player][0].currentFrame;
                   }
                 } else {
                   if (this.inputHistory[player].unshift({
+                    currentFrame: currentFrame,
                     inputs: newInputs.sort(sortingAlgorithms[player]),
                     heldTime: 1
                   }) > INPUT_LIMIT) {
