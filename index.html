@@ -173,17 +173,19 @@
                   this.idleFrames[player] = currentFrame + 1;
                 }
 
-                let allHeld = true;
+                let allHeld = this.inputHistory[player][0] !== undefined && newInputs.length === this.inputHistory[player][0].inputs.length;
 
-                newInputs.forEach((input) => {
-                  allHeld &= input.held;
-                });
+                if (allHeld) {
+                  newInputs.forEach((input) => {
+                    allHeld &= input.held;
+                  });
+                }
 
                 if (allHeld) {
                   if (newInputs.length !== 0) {
-                    this.inputHistory[player][0].heldTime = currentFrame - this.inputHistory[player][0].currentFrame;
+                    this.inputHistory[player][0].heldTime = currentFrame + 1 - this.inputHistory[player][0].currentFrame;
                   }
-                } else {
+                } else if (newInputs.length !== 0) {
                   if (this.inputHistory[player].unshift({
                     currentFrame: currentFrame,
                     inputs: newInputs.sort(sortingAlgorithms[player]),
