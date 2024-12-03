@@ -160,9 +160,10 @@
                   this.idleTimes[player]++;
                 } else {
                   if (this.idleTimes[player] > 0) {
-                    if (this.inputHistory[player].unshift({ inputs: [{ name: "spacer" }], heldTime: this.idleTimes[player] }) > 18) {
-                      this.inputHistory[player].pop();
-                    }
+                    this.inputHistory[player].unshift({ 
+                      inputs: [{ name: "spacer" }], 
+                      heldTime: this.idleTimes[player] 
+                    });
                   }
 
                   this.idleTimes[player] = 0;
@@ -179,12 +180,10 @@
                     this.inputHistory[player][0].heldTime++;
                   }
                 } else {
-                  if (this.inputHistory[player].unshift({
+                  this.inputHistory[player].unshift({
                     inputs: newInputs.sort(sortingAlgorithms[player]),
                     heldTime: 1
-                  }) > 18) {
-                    this.inputHistory[player].pop();
-                  }
+                  });
                 }
 
                 this.prevInputStates[player] = inputState;
