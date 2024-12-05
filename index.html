@@ -11,17 +11,19 @@
 
   #p1-inputs, #p2-inputs {
     position: absolute;
-    top: 19.2vh;
+    top: 210px;
   }
 
-  #p1-inputs { left: 2.75vh; }
-  #p2-inputs { right: 2.75vh; }
-  .frame { display: flex; }
+  #p1-inputs { left: 30px; }
+  #p2-inputs { right: 30px; }
+
+  .frame {
+    display: flex;
+    column-gap: 5px;
+    margin-bottom: 8px;
+  }
+
   #p2-inputs .frame { flex-direction: row-reverse; }
-
-  .heldTime, .input {  
-    margin: 0.225vh 0.1vh;
-  }
 
   .heldTime {
     font-family: 'Segoe UI';
@@ -33,8 +35,8 @@
   }
 
   .input {
-    width: 4vh;
-    height: 4vh;
+    width: 40px;
+    height: 40px;
   }
 
   .held {

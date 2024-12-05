@@ -10,4 +10,4 @@ You must install Pangaea's mod (https://github.com/super-continent/ggxrd-mod/) b
 1) Download the code as a zip file and extract the contents.
 2) In OBS Studio, create a new browser source
 3) Check the Local file option, browse to the extracted code and select index.html
-4) Set the width to 1920 and the height to 1080
+4) Set the width to 1920 and the height to 1080 to replicate the in-game input history icon size
