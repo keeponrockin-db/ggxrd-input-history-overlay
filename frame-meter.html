@@ -1,0 +1,222 @@
+<style>
+  [v-cloak] {
+    display: none;
+  }
+
+  ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .frame-viewer {
+    display: flex;
+  }
+
+  .frame {
+    border: solid black 2px;
+    width: 20px;
+    overflow: visible;
+    direction: rtl;
+
+    font-family: 'Segoe UI';
+    font-size: 2em;
+    font-weight: bolder;
+    text-align: center;
+    color: white;
+    -webkit-text-stroke: 2px black;
+
+    background-color: lightgreen;
+  }
+
+  .neutral {
+    background-color: white;
+  }
+
+  .block {
+    background-color: orange;
+  }
+
+  .hit {
+    background-color: red;
+  }
+  
+  .down {
+    background-color: black;
+  }
+
+  .hidden {
+    color: rgba(0,0,0,0);
+    font-size: 0;
+  }
+
+</style>
+
+<script type="importmap">
+  {
+    "imports": {
+      "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+    }
+  }
+</script>
+
+<div id="app" v-cloak>
+  <ul class="frame-viewer">
+    <li :class="classFromState(frame.state)" v-for="(frame, index) in stateHistory[0]">
+      <span :class="stateHistory[0][index + 1] ? (stateHistory[0][index + 1].consecutiveCount > 1 ? 'hidden' : 'last') : ''">
+        {{ frame.consecutiveCount }}
+      </span>
+    </li>
+  </ul>
+  <ul class="frame-viewer">
+    <li :class="classFromState(frame.state)" v-for="(frame, index) in stateHistory[1]">
+      <span :class="stateHistory[1][index + 1] ? (stateHistory[1][index + 1].consecutiveCount > 1 ? 'hidden' : 'last') : ''">
+        {{ frame.consecutiveCount }}
+      </span>
+    </li>
+  </ul>
+</div>
+
+<script type="module">
+  import { createApp } from 'vue';
+  
+  const MAX_FRAMES = 80;
+
+  const NEUTRAL_STATES = [
+    "CmnActStand", "CmnActStandTurn",
+    "CmnActBWalk", "CmnActFWalk", 
+    "CmnActFDashStop",
+    "CmnActStand2Crouch", "CmnActCrouch2Stand", "CmnActCrouch", 
+    "CrouchBWalk", "CrouchFWalk",
+    "CmnActJump", "CmnActJumpLanding",
+    "CmnActAirTurn",
+    "CmnActLandingStiff",
+    "CmnActHighGuardEnd",
+    "CmnActMidGuardEnd",
+    "CmnActCrouchGuardEnd",
+    "CmnActAirGuardEnd"
+  ];
+
+  const BLOCK_STATES = [
+    "CmnActHighGuardLoop",
+    "CmnActMidGuardLoop",
+    "CmnActCrouchGuardLoop",
+    "CmnActAirGuardLoop"
+  ];
+
+  const HIT_STATES = [
+    "CmnActNokezoriHighLv1", "CmnActNokezoriHighLv2", "CmnActNokezoriHighLv3", "CmnActNokezoriHighLv4", "CmnActNokezoriHighLv5",
+    "CmnActNokezoriLowLv1", "CmnActNokezoriLowLv2", "CmnActNokezoriLowLv3", "CmnActNokezoriLowLv4", "CmnActNokezoriLowLv5",
+    "CmnActNokezoriCrouchLv1", "CmnActNokezoriCrouchLv2", "CmnActNokezoriCrouchLv3", "CmnActNokezoriCrouchLv4", "CmnActNokezoriCrouchLv5",
+    "CmnActJitabataLoop",
+    "CmnActFDownUpper", "CmnActFDownDown",
+    "CmnActBDownUpper", "CmnActBDownDown",
+    "CmnActBlowoff",
+    "CmnActLockWait"
+  ];
+  
+  const DOWN_STATES = [
+    "CmnActFDownBound", "CmnActFDownLoop", "CmnActFDown2Stand",
+    "CmnActBDownBound", "CmnActBDownLoop", "CmnActBDown2Stand"
+  ];
+
+  createApp({
+    data() {
+      return {
+        connection: null,
+        stateHistory: [[], []],
+        recordFrames: false,
+        prevFrameState: [null, null],
+        lastNeutralFrame: [],
+        classFromState: (state) => {
+          let cssClass = "frame";
+
+          if (NEUTRAL_STATES.includes(state)) {
+            cssClass += " neutral"
+          }
+
+          if (BLOCK_STATES.includes(state)) {
+            cssClass += " block";
+          }
+
+          if (HIT_STATES.includes(state)) {
+            cssClass += " hit";
+          }
+
+          if (DOWN_STATES.includes(state)) {
+            cssClass += " down";
+          }
+
+          return `${cssClass} ${state}`;
+        },
+        handleGGXrdModEvent: (event) => {
+          let response = JSON.parse(event.data);
+
+          switch(response.event) {
+            case "ggxrd_stateUpdate":
+              let currentFrame = Number.parseInt(response.data.current_frame);
+              let playerStates = [response.data.player_1.state, response.data.player_2.state];
+
+              let prevStates = [this.stateHistory[0][this.stateHistory[0].length - 1], this.stateHistory[1][this.stateHistory[1].length - 1]];
+              let wakeUpFrame = (prevStates[0] && DOWN_STATES.includes(prevStates[0].state)) || (prevStates[1] && DOWN_STATES.includes(prevStates[1].state));
+
+              if (!wakeUpFrame) {
+                this.recordFrames = this.recordFrames && !(NEUTRAL_STATES.includes(playerStates[0]) && NEUTRAL_STATES.includes(playerStates[1]));
+              }
+
+              [0, 1].forEach((player) => {
+                if (!NEUTRAL_STATES.includes(playerStates[player])) {
+                  if (!this.recordFrames) {
+                    this.stateHistory = [[], []];
+                    this.recordFrames = true;
+
+                    if (player === 1) {
+                      this.stateHistory[0].push({  
+                        state: playerStates[0],
+                        consecutiveCount: 1
+                      });
+                    }
+                  }
+                }
+
+                if (this.recordFrames) {
+                  let consecutiveCount = 1;
+                  let prevState = this.stateHistory[player][this.stateHistory[player].length - 1];
+
+                  if (prevState) {
+                    let equivalentStates = false;
+                    
+                    equivalentStates = equivalentStates || prevState.state === playerStates[player];
+                    equivalentStates = equivalentStates || (NEUTRAL_STATES.includes(prevState.state) && NEUTRAL_STATES.includes(playerStates[player]));
+                    equivalentStates = equivalentStates || (BLOCK_STATES.includes(prevState.state) && BLOCK_STATES.includes(playerStates[player]));
+                    equivalentStates = equivalentStates || (HIT_STATES.includes(prevState.state) && HIT_STATES.includes(playerStates[player]));
+                    equivalentStates = equivalentStates || (DOWN_STATES.includes(prevState.state) && DOWN_STATES.includes(playerStates[player]));
+
+                    if (equivalentStates) {
+                      consecutiveCount = prevState.consecutiveCount + 1;
+                    }
+                  }
+
+                  if (this.stateHistory[player].push({  
+                    state: playerStates[player],
+                    consecutiveCount: consecutiveCount
+                  }) > MAX_FRAMES) {
+                    this.stateHistory[player].shift();
+                  }
+                }
+              });
+              break;
+
+            case "ggxrd_gamestateDeinitializedEvent":
+              this.stateHistory = [[], []];
+              break;
+          }
+        }
+      }
+    },
+    created() {
+      this.connection = new WebSocket("ws://localhost:6651");
+      this.connection.addEventListener("message", this.handleGGXrdModEvent);
+    }
+  }).mount('#app');
+</script>
