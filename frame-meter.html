@@ -50,6 +50,15 @@
     font-size: 0;
   }
 
+  .contact {
+    filter: brightness(60%);
+  }
+
+  .prev-state-history {
+    filter: brightness(30%);
+    position: absolute;
+    z-index: -1;
+  }
 </style>
 
 <script type="importmap">
@@ -61,16 +70,30 @@
 </script>
 
 <div id="app" v-cloak>
-  <ul class="frame-viewer">
-    <li :class="classFromState(frame.state)" v-for="(frame, index) in stateHistory[0]">
-      <span :class="stateHistory[0][index + 1] ? (stateHistory[0][index + 1].consecutiveCount > 1 ? 'hidden' : 'last') : ''">
+  <ul class="frame-viewer prev-state-history">
+    <li :class="getFrameClass(frame)" v-for="(frame, index) in prevStateHistory[0]">
+      <span :class="prevStateHistory[0][index + 1] ? (prevStateHistory[0][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
   </ul>
   <ul class="frame-viewer">
-    <li :class="classFromState(frame.state)" v-for="(frame, index) in stateHistory[1]">
-      <span :class="stateHistory[1][index + 1] ? (stateHistory[1][index + 1].consecutiveCount > 1 ? 'hidden' : 'last') : ''">
+    <li :class="getFrameClass(frame)" v-for="(frame, index) in stateHistory[0]">
+      <span :class="stateHistory[0][index + 1] ? (stateHistory[0][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
+        {{ frame.consecutiveCount }}
+      </span>
+    </li>
+  </ul>
+  <ul class="frame-viewer prev-state-history">
+    <li :class="getFrameClass(frame)" v-for="(frame, index) in prevStateHistory[1]">
+      <span :class="prevStateHistory[0][index + 1] ? (prevStateHistory[0][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
+        {{ frame.consecutiveCount }}
+      </span>
+    </li>
+  </ul>
+  <ul class="frame-viewer">
+    <li :class="getFrameClass(frame)" v-for="(frame, index) in stateHistory[1]">
+      <span :class="stateHistory[1][index + 1] ? (stateHistory[1][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
@@ -125,29 +148,35 @@
       return {
         connection: null,
         stateHistory: [[], []],
+        prevStateHistory: [[], []],
+        contactFrames: [0, 0],
         recordFrames: false,
         prevFrameState: [null, null],
         lastNeutralFrame: [],
-        classFromState: (state) => {
+        getFrameClass: (frame) => {
           let cssClass = "frame";
 
-          if (NEUTRAL_STATES.includes(state)) {
+          if (NEUTRAL_STATES.includes(frame.state)) {
             cssClass += " neutral"
           }
 
-          if (BLOCK_STATES.includes(state)) {
+          if (BLOCK_STATES.includes(frame.state)) {
             cssClass += " block";
           }
 
-          if (HIT_STATES.includes(state)) {
+          if (HIT_STATES.includes(frame.state)) {
             cssClass += " hit";
           }
 
-          if (DOWN_STATES.includes(state)) {
+          if (DOWN_STATES.includes(frame.state)) {
             cssClass += " down";
           }
 
-          return `${cssClass} ${state}`;
+          if (frame.contact) {
+            cssClass += " contact";
+          }
+
+          return `${cssClass} ${frame.state}`;
         },
         handleGGXrdModEvent: (event) => {
           let response = JSON.parse(event.data);
@@ -165,9 +194,15 @@
               }
 
               [0, 1].forEach((player) => {
+                if (this.stateHistory[player].length === MAX_FRAMES) {
+                  this.prevStateHistory[player] = this.stateHistory[player];
+                  this.stateHistory[player] = [];
+                }
+
                 if (!NEUTRAL_STATES.includes(playerStates[player])) {
                   if (!this.recordFrames) {
                     this.stateHistory = [[], []];
+                    this.prevStateHistory = [[], []];
                     this.recordFrames = true;
 
                     if (player === 1) {
@@ -181,7 +216,7 @@
 
                 if (this.recordFrames) {
                   let consecutiveCount = 1;
-                  let prevState = this.stateHistory[player][this.stateHistory[player].length - 1];
+                  let prevState = prevStates[player];
 
                   if (prevState) {
                     let equivalentStates = false;
@@ -197,18 +232,26 @@
                     }
                   }
 
-                  if (this.stateHistory[player].push({  
+                  this.stateHistory[player].push({
                     state: playerStates[player],
-                    consecutiveCount: consecutiveCount
-                  }) > MAX_FRAMES) {
-                    this.stateHistory[player].shift();
-                  }
+                    consecutiveCount: consecutiveCount,
+                    contact: this.contactFrames[player] === currentFrame
+                  });
                 }
               });
               break;
 
+            case "ggxrd_hitEvent":
+              if (response.data.victim === "Player1") {
+                this.contactFrames[0] = response.data.current_frame;
+              } else if (response.data.victim === "Player2") {
+                this.contactFrames[1] = response.data.current_frame;
+              }
+              break;
+
             case "ggxrd_gamestateDeinitializedEvent":
               this.stateHistory = [[], []];
+              this.prevStateHistory = [[], []];
               break;
           }
         }
