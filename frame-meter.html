@@ -86,7 +86,7 @@
   </ul>
   <ul class="frame-viewer prev-state-history">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in prevStateHistory[1]">
-      <span :class="prevStateHistory[0][index + 1] ? (prevStateHistory[0][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
+      <span :class="prevStateHistory[1][index + 1] ? (prevStateHistory[1][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
