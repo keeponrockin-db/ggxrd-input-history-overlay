@@ -147,6 +147,39 @@
   const HITSTOP = [11, 12, 13, 14, 15];
   const BLOCKSTUN = [9, 11, 13, 17, 18];
   const AIR_BLOCKSTUN = [9, 11, 13, 17, 19];
+  const SPECIAL_HITSTOP = {
+    Sol_Fefnir: 14,
+    May_IrukasanYokoC: -1,
+    May_IrukasanYokoD: -1,
+    May_IrukasanTateC: -1,
+    May_IrukasanTateD: -1,
+    Chipp_AlphaBlade: -15,
+    Chipp_ShurikenObj: -6,
+    Chipp_ShurikenObj1: -6,
+    Chipp_Kunai: -19,
+    Chipp_Kunai_Wall: -6,
+    Slayer_NmlAtk2D: -15,
+    Slayer_NmlAtkAir5C: -7,
+    Slayer_FootLoose: -8,
+    Bedman_Djavu_C_Ghost: -8,
+    Bedman_SpiralBed: -8,
+    Venom_Debious_AttackBall: -6,
+    Sin_BeakDriverLv1: 9, // not in use
+    Leo_Semuke5B: -6,
+    Johnny_Coin: -19,
+    Johnny_MistFinerALv0: -15,
+    Johnny_MistFinerBLv0: -15,
+    Johnny_MistFinerCLv0: -15,
+    Johnny_MistFinerALv1: -15,
+    Johnny_MistFinerBLv1: -15,
+    Johnny_MistFinerCLv1: -15,
+    Johnny_MistFinerALv2: -15,
+    Johnny_MistFinerBLv2: -15,
+    Johnny_MistFinerCLv2: -15,
+    Jam_NmlAtk5B: -6,
+    Jam_NmlAtk5D: -8,
+    Jam_Youeikyaku: -1
+  }
 
   createApp({
     data() {
@@ -237,18 +270,24 @@
                       case "CmnActCrouchGuardLoop":
                         newPlayerState.blockstun = this.contactFrames[player].frame
                          + BLOCKSTUN[this.contactFrames[player].attackLevel]
-                         + HITSTOP[this.contactFrames[player].attackLevel] >= currentFrame;
+                         + HITSTOP[this.contactFrames[player].attackLevel]
+                         + (SPECIAL_HITSTOP[this.contactFrames[player].attackerState] ?? 0) >= currentFrame;
                         break;
                       
                       case "CmnActAirGuardLoop":
                         newPlayerState.blockstun = this.contactFrames[player].frame
                          + AIR_BLOCKSTUN[this.contactFrames[player].attackLevel]
-                         + HITSTOP[this.contactFrames[player].attackLevel] >= currentFrame;
+                         + HITSTOP[this.contactFrames[player].attackLevel]
+                         + (SPECIAL_HITSTOP[this.contactFrames[player].attackerState] ?? 0) >= currentFrame;
                         break;
                     }
 
                     if (newPlayerState.blockstun) {
                       newPlayerState.state = playerStates[player];
+                      console.log(`${this.contactFrames[player].frame
+                         + BLOCKSTUN[this.contactFrames[player].attackLevel]
+                         + HITSTOP[this.contactFrames[player].attackLevel]
+                         + (SPECIAL_HITSTOP[this.contactFrames[player].attackerState] ?? 0)} >= ${currentFrame}`);
                     } else {
                       newPlayerState.state = "ProximityGuard";
                     };
@@ -279,10 +318,14 @@
               if (response.data.victim === "Player1") {
                 this.contactFrames[0].frame = response.data.current_frame;
                 this.contactFrames[0].attackLevel = response.data.attack_level;
+                this.contactFrames[0].attackerState = `${response.data.game_state.player_2.character}_${response.data.attacker_state}`;
               } else if (response.data.victim === "Player2") {
                 this.contactFrames[1].frame = response.data.current_frame;
                 this.contactFrames[1].attackLevel = response.data.attack_level;
+                this.contactFrames[1].attackerState = `${response.data.game_state.player_1.character}_${response.data.attacker_state}`;
               }
+              
+              console.log(response);
               break;
               
             case "ggxrd_roundStartEvent":
