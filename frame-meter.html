@@ -117,7 +117,8 @@
     "CmnActHighGuardEnd",
     "CmnActMidGuardEnd",
     "CmnActCrouchGuardEnd",
-    "CmnActAirGuardEnd"
+    "CmnActAirGuardEnd",
+    "ProximityGuard"
   ];
 
   const BLOCK_STATES = [
@@ -143,16 +144,22 @@
     "CmnActBDownBound", "CmnActBDownLoop", "CmnActBDown2Stand"
   ];
 
+  const HITSTOP = [11, 12, 13, 14, 15];
+  const BLOCKSTUN = [9, 11, 13, 17, 18];
+  const AIR_BLOCKSTUN = [9, 11, 13, 17, 19];
+
   createApp({
     data() {
       return {
         connection: null,
         stateHistory: [[], []],
         prevStateHistory: [[], []],
-        contactFrames: [0, 0],
+        contactFrames: [
+          { attackLevel: 0, frame: -1 }, 
+          { attackLevel: 0, frame: -1 }
+        ],
         recordFrames: false,
         prevFrameState: [null, null],
-        lastNeutralFrame: [],
         getFrameClass: (frame) => {
           let cssClass = "frame";
 
@@ -216,38 +223,77 @@
                 }
 
                 if (this.recordFrames) {
-                  let consecutiveCount = 1;
                   let prevState = prevStates[player];
+
+                  let newPlayerState = {
+                    consecutiveCount: 1,
+                    contact: this.contactFrames[player].frame === currentFrame
+                  };
+
+                  if (BLOCK_STATES.includes(playerStates[player])) {
+                    switch (playerStates[player]) {
+                      case "CmnActHighGuardLoop":
+                      case "CmnActMidGuardLoop":
+                      case "CmnActCrouchGuardLoop":
+                        newPlayerState.blockstun = this.contactFrames[player].frame
+                         + BLOCKSTUN[this.contactFrames[player].attackLevel]
+                         + HITSTOP[this.contactFrames[player].attackLevel] >= currentFrame;
+                        break;
+                      
+                      case "CmnActAirGuardLoop":
+                        newPlayerState.blockstun = this.contactFrames[player].frame
+                         + AIR_BLOCKSTUN[this.contactFrames[player].attackLevel]
+                         + HITSTOP[this.contactFrames[player].attackLevel] >= currentFrame;
+                        break;
+                    }
+
+                    if (newPlayerState.blockstun) {
+                      newPlayerState.state = playerStates[player];
+                    } else {
+                      newPlayerState.state = "ProximityGuard";
+                    };
+                  } else {
+                    newPlayerState.state = playerStates[player];
+                  }
 
                   if (prevState) {
                     let equivalentStates = false;
                     
-                    equivalentStates = equivalentStates || prevState.state === playerStates[player];
-                    equivalentStates = equivalentStates || (NEUTRAL_STATES.includes(prevState.state) && NEUTRAL_STATES.includes(playerStates[player]));
-                    equivalentStates = equivalentStates || (BLOCK_STATES.includes(prevState.state) && BLOCK_STATES.includes(playerStates[player]));
-                    equivalentStates = equivalentStates || (HIT_STATES.includes(prevState.state) && HIT_STATES.includes(playerStates[player]));
-                    equivalentStates = equivalentStates || (DOWN_STATES.includes(prevState.state) && DOWN_STATES.includes(playerStates[player]));
+                    equivalentStates = equivalentStates || prevState.state === newPlayerState.state;
+                    equivalentStates = equivalentStates || (NEUTRAL_STATES.includes(prevState.state) && NEUTRAL_STATES.includes(newPlayerState.state));
+                    equivalentStates = equivalentStates || (BLOCK_STATES.includes(prevState.state) && BLOCK_STATES.includes(newPlayerState.state));
+                    equivalentStates = equivalentStates || (HIT_STATES.includes(prevState.state) && HIT_STATES.includes(newPlayerState.state));
+                    equivalentStates = equivalentStates || (DOWN_STATES.includes(prevState.state) && DOWN_STATES.includes(newPlayerState.state));
 
                     if (equivalentStates) {
-                      consecutiveCount = prevState.consecutiveCount + 1;
+                      newPlayerState.consecutiveCount = prevState.consecutiveCount + 1;
                     }
                   }
-
-                  this.stateHistory[player].push({
-                    state: playerStates[player],
-                    consecutiveCount: consecutiveCount,
-                    contact: this.contactFrames[player] === currentFrame
-                  });
+                  
+                  this.stateHistory[player].push(newPlayerState);
                 }
               });
               break;
 
             case "ggxrd_hitEvent":
               if (response.data.victim === "Player1") {
-                this.contactFrames[0] = response.data.current_frame;
+                this.contactFrames[0].frame = response.data.current_frame;
+                this.contactFrames[0].attackLevel = response.data.attack_level;
               } else if (response.data.victim === "Player2") {
-                this.contactFrames[1] = response.data.current_frame;
+                this.contactFrames[1].frame = response.data.current_frame;
+                this.contactFrames[1].attackLevel = response.data.attack_level;
               }
+              break;
+              
+            case "ggxrd_roundStartEvent":
+              this.stateHistory = [[], []];
+              this.prevStateHistory = [[], []];
+              this.contactFrames =  [
+                { attackLevel: 0, frame: -1 }, 
+                { attackLevel: 0, frame: -1 }
+              ];
+              this.recordFrames = false;
+              this.prevFrameState = [null, null];
               break;
 
             case "ggxrd_gamestateDeinitializedEvent":
