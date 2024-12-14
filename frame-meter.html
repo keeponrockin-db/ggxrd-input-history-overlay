@@ -158,43 +158,6 @@
     "CmnActBDownBound", "CmnActBDownLoop", "CmnActBDown2Stand"
   ];
 
-  const HITSTOP = [11, 12, 13, 14, 15];
-  const BLOCKSTUN = [9, 11, 13, 17, 18];
-  const AIR_BLOCKSTUN = [9, 11, 13, 17, 19];
-  const SPECIAL_HITSTOP = {
-    Sol_Fefnir: 14,
-    May_IrukasanYokoC: -1,
-    May_IrukasanYokoD: -1,
-    May_IrukasanTateC: -1,
-    May_IrukasanTateD: -1,
-    Chipp_AlphaBlade: -15,
-    Chipp_ShurikenObj: -6,
-    Chipp_ShurikenObj1: -6,
-    Chipp_Kunai: -19,
-    Chipp_Kunai_Wall: -6,
-    Slayer_NmlAtk2D: -15,
-    Slayer_NmlAtkAir5C: -7,
-    Slayer_FootLoose: -8,
-    Bedman_Djavu_C_Ghost: -8,
-    Bedman_SpiralBed: -8,
-    Venom_Debious_AttackBall: -6,
-    Sin_BeakDriverLv1: 9, // not in use
-    Leo_Semuke5B: -6,
-    Johnny_Coin: -19,
-    Johnny_MistFinerALv0: -15,
-    Johnny_MistFinerBLv0: -15,
-    Johnny_MistFinerCLv0: -15,
-    Johnny_MistFinerALv1: -15,
-    Johnny_MistFinerBLv1: -15,
-    Johnny_MistFinerCLv1: -15,
-    Johnny_MistFinerALv2: -15,
-    Johnny_MistFinerBLv2: -15,
-    Johnny_MistFinerCLv2: -15,
-    Jam_NmlAtk5B: -6,
-    Jam_NmlAtk5D: -8,
-    Jam_Youeikyaku: -1
-  }
-
   createApp({
     data() {
       return {
@@ -202,8 +165,8 @@
         stateHistory: [[], []],
         prevStateHistory: [[], []],
         contactFrames: [
-          { attackLevel: 0, frame: -1 }, 
-          { attackLevel: 0, frame: -1 }
+          { frame: -1 }, 
+          { frame: -1 }
         ],
         recordFrames: false,
         prevFrameState: [null, null],
@@ -214,16 +177,16 @@
             cssClass += " neutral"
           }
 
-          if (BLOCK_STATES.includes(frame.state)) {
-            cssClass += " block";
+          if (DOWN_STATES.includes(frame.state)) {
+            cssClass += " down";
           }
 
-          if (HIT_STATES.includes(frame.state)) {
+          if (frame.hitstun > 0) {
             cssClass += " hit";
           }
 
-          if (DOWN_STATES.includes(frame.state)) {
-            cssClass += " down";
+          if (frame.blockstun > 0) {
+            cssClass += " block"
           }
 
           if (frame.contact) {
@@ -248,13 +211,13 @@
           switch (response.event) {
             case "ggxrd_stateUpdate":
               let currentFrame = Number.parseInt(response.data.current_frame);
-              let playerStates = [response.data.player_1.state, response.data.player_2.state];
+              let playerData = [response.data.player_1, response.data.player_2];
 
               let prevStates = [this.stateHistory[0][this.stateHistory[0].length - 1], this.stateHistory[1][this.stateHistory[1].length - 1]];
               let wakeUpFrame = (prevStates[0] && DOWN_STATES.includes(prevStates[0].state)) || (prevStates[1] && DOWN_STATES.includes(prevStates[1].state));
 
               if (!wakeUpFrame) {
-                this.recordFrames = this.recordFrames && !(NEUTRAL_STATES.includes(playerStates[0]) && NEUTRAL_STATES.includes(playerStates[1]));
+                this.recordFrames = this.recordFrames && !(NEUTRAL_STATES.includes(playerData[0].state) && NEUTRAL_STATES.includes(playerData[1].state));
               }
 
               [0, 1].forEach((player) => {
@@ -263,7 +226,7 @@
                   this.stateHistory[player] = [];
                 }
 
-                if (!NEUTRAL_STATES.includes(playerStates[player])) {
+                if (!NEUTRAL_STATES.includes(playerData[player].state)) {
                   if (!this.recordFrames) {
                     this.stateHistory = [[], []];
                     this.prevStateHistory = [[], []];
@@ -272,7 +235,7 @@
 
                     if (player === 1) {
                       this.stateHistory[0].push({  
-                        state: playerStates[0],
+                        state: playerData[0].state,
                         consecutiveCount: 1
                       });
                     }
@@ -284,45 +247,15 @@
 
                   let newPlayerState = {
                     consecutiveCount: 1,
-                    contact: this.contactFrames[player].frame === currentFrame
+                    contact: this.contactFrames[player].frame === currentFrame,
+                    hitstop: playerData[player].hitstop_left,
+                    blockstun: playerData[player].blockstun_left,
+                    hitstun: playerData[player].hitstun_left,
+                    state: playerData[player].state
                   };
 
                   if (newPlayerState.contact) {
                     newPlayerState.attackGuardType = this.contactFrames[player].attackGuardType;
-                  }
-
-                  if (BLOCK_STATES.includes(playerStates[player])) {
-                    switch (playerStates[player]) {
-                      case "CmnActHighGuardLoop":
-                      case "CmnActMidGuardLoop":
-                      case "CmnActCrouchGuardLoop":
-                        newPlayerState.blockstun = this.contactFrames[player].frame
-                         + BLOCKSTUN[this.contactFrames[player].attackLevel]
-                         + HITSTOP[this.contactFrames[player].attackLevel]
-                         + (SPECIAL_HITSTOP[this.contactFrames[player].attackerState] ?? 0) >= currentFrame;
-                        break;
-                      
-                      case "CmnActAirGuardLoop":
-                        newPlayerState.blockstun = this.contactFrames[player].frame
-                         + AIR_BLOCKSTUN[this.contactFrames[player].attackLevel]
-                         + HITSTOP[this.contactFrames[player].attackLevel]
-                         + (SPECIAL_HITSTOP[this.contactFrames[player].attackerState] ?? 0) >= currentFrame;
-                        break;
-                    }
-
-                    if (newPlayerState.blockstun) {
-                      newPlayerState.state = playerStates[player];
-                      /* 
-                      console.log(`${this.contactFrames[player].frame
-                         + BLOCKSTUN[this.contactFrames[player].attackLevel]
-                         + HITSTOP[this.contactFrames[player].attackLevel]
-                         + (SPECIAL_HITSTOP[this.contactFrames[player].attackerState] ?? 0)} >= ${currentFrame}`);
-                      */
-                    } else {
-                      newPlayerState.state = "ProximityGuard";
-                    };
-                  } else {
-                    newPlayerState.state = playerStates[player];
                   }
 
                   if (prevState) {
@@ -347,14 +280,16 @@
             case "ggxrd_hitEvent":
               if (response.data.victim === "Player1") {
                 this.contactFrames[0].frame = response.data.current_frame;
-                this.contactFrames[0].attackLevel = response.data.attack_level;
-                this.contactFrames[0].attackerState = `${response.data.game_state.player_2.character}_${response.data.attacker_state}`;
                 this.contactFrames[0].attackGuardType = response.data.attack_guard_type;
+                this.contactFrames[0].hitstop = response.data.game_state.player_1.hitstop_left;
+                this.contactFrames[0].blockstun = response.data.game_state.player_1.blockstun_left;
+                this.contactFrames[0].hitstun = response.data.game_state.player_1.hitstun_left;
               } else if (response.data.victim === "Player2") {
                 this.contactFrames[1].frame = response.data.current_frame;
-                this.contactFrames[1].attackLevel = response.data.attack_level;
-                this.contactFrames[1].attackerState = `${response.data.game_state.player_1.character}_${response.data.attacker_state}`;
                 this.contactFrames[1].attackGuardType = response.data.attack_guard_type;
+                this.contactFrames[1].hitstop = response.data.game_state.player_2.hitstop_left;
+                this.contactFrames[1].blockstun = response.data.game_state.player_2.blockstun_left;
+                this.contactFrames[1].hitstun = response.data.game_state.player_2.hitstun_left;
               }
               break;
               
@@ -362,8 +297,8 @@
               this.stateHistory = [[], []];
               this.prevStateHistory = [[], []];
               this.contactFrames =  [
-                { attackLevel: 0, frame: -1 }, 
-                { attackLevel: 0, frame: -1 }
+                { frame: -1 }, 
+                { frame: -1 }
               ];
               this.recordFrames = false;
               this.prevFrameState = [null, null];
