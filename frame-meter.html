@@ -61,6 +61,14 @@
     position: absolute;
     z-index: -1;
   }
+
+  .overhead .icon {
+    margin-bottom: 17px;
+  }
+
+  .low .icon {
+    margin-top: 17px;
+  }
 </style>
 
 <script type="importmap">
@@ -220,6 +228,16 @@
 
           if (frame.contact) {
             cssClass += " contact";
+
+            switch (frame.attackGuardType) {
+              case "Overhead":
+                cssClass += " overhead";
+                break;
+                
+              case "Low":
+                cssClass += " low";
+                break;
+            }
           }
 
           return `${cssClass} ${frame.state}`;
