@@ -87,7 +87,7 @@
   <ul class="frame-viewer prev-state-history">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in prevStateHistory[0]">
       <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
-      <span :class="prevStateHistory[0][index + 1] ? (prevStateHistory[0][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
+      <span :class="prevStateHistory[0][index + 1] ? (prevStateHistory[0][index + 1].consecutiveCount == 1 || prevStateHistory[0][index + 1].contact ? 'last' : 'hidden') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
@@ -95,7 +95,7 @@
   <ul class="frame-viewer">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in stateHistory[0]">
       <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
-      <span :class="stateHistory[0][index + 1] ? (stateHistory[0][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
+      <span :class="stateHistory[0][index + 1] ? (stateHistory[0][index + 1].consecutiveCount == 1 || stateHistory[0][index + 1].contact ? 'last' : 'hidden') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
@@ -103,7 +103,7 @@
   <ul class="frame-viewer prev-state-history">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in prevStateHistory[1]">
       <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
-      <span :class="prevStateHistory[1][index + 1] ? (prevStateHistory[1][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
+      <span :class="prevStateHistory[1][index + 1] ? (prevStateHistory[1][index + 1].consecutiveCount == 1 || prevStateHistory[1][index + 1].contact ? 'last' : 'hidden') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
@@ -111,7 +111,7 @@
   <ul class="frame-viewer">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in stateHistory[1]">
       <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
-      <span :class="stateHistory[1][index + 1] ? (stateHistory[1][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
+      <span :class="stateHistory[1][index + 1] ? (stateHistory[1][index + 1].consecutiveCount == 1 || stateHistory[1][index + 1].contact ? 'last' : 'hidden') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
