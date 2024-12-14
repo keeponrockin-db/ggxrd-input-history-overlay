@@ -27,6 +27,8 @@
     -webkit-text-stroke: 2px black;
 
     background-color: lightgreen;
+    display: flex;
+    align-items: center;
   }
 
   .neutral {
@@ -53,7 +55,7 @@
   .contact {
     filter: brightness(60%);
   }
-
+  
   .prev-state-history {
     filter: brightness(30%);
     position: absolute;
@@ -72,28 +74,32 @@
 <div id="app" v-cloak>
   <ul class="frame-viewer prev-state-history">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in prevStateHistory[0]">
-      <span :class="prevStateHistory[0][index + 1] ? (prevStateHistory[0][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
+      <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
+      <span :class="prevStateHistory[0][index + 1] ? (prevStateHistory[0][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
   </ul>
   <ul class="frame-viewer">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in stateHistory[0]">
-      <span :class="stateHistory[0][index + 1] ? (stateHistory[0][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
+      <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
+      <span :class="stateHistory[0][index + 1] ? (stateHistory[0][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
   </ul>
   <ul class="frame-viewer prev-state-history">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in prevStateHistory[1]">
-      <span :class="prevStateHistory[1][index + 1] ? (prevStateHistory[1][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
+      <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
+      <span :class="prevStateHistory[1][index + 1] ? (prevStateHistory[1][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
   </ul>
   <ul class="frame-viewer">
     <li :class="getFrameClass(frame)" v-for="(frame, index) in stateHistory[1]">
-      <span :class="stateHistory[1][index + 1] ? (stateHistory[1][index + 1].consecutiveCount > 1 && !frame.contact ? 'hidden' : 'last') : ''">
+      <img class="icon" v-if="frame.attackGuardType && frame.attackGuardType !== 'Any'" :src="`icons/${frame.attackGuardType}.svg`" />
+      <span :class="stateHistory[1][index + 1] ? (stateHistory[1][index + 1].consecutiveCount > 1 && (!frame.contact || frame.consecutiveCount === 1) ? 'hidden' : 'last') : ''">
         {{ frame.consecutiveCount }}
       </span>
     </li>
@@ -111,7 +117,7 @@
     "CmnActFDashStop",
     "CmnActStand2Crouch", "CmnActCrouch2Stand", "CmnActCrouch", 
     "CrouchBWalk", "CrouchFWalk",
-    "CmnActJump", "CmnActJumpLanding",
+    "CmnActJump",
     "CmnActAirTurn",
     "CmnActLandingStiff",
     "CmnActHighGuardEnd",
@@ -221,7 +227,7 @@
         handleGGXrdModEvent: (event) => {
           let response = JSON.parse(event.data);
 
-          switch(response.event) {
+          switch (response.event) {
             case "ggxrd_stateUpdate":
               let currentFrame = Number.parseInt(response.data.current_frame);
               let playerStates = [response.data.player_1.state, response.data.player_2.state];
@@ -263,6 +269,10 @@
                     contact: this.contactFrames[player].frame === currentFrame
                   };
 
+                  if (newPlayerState.contact) {
+                    newPlayerState.attackGuardType = this.contactFrames[player].attackGuardType;
+                  }
+
                   if (BLOCK_STATES.includes(playerStates[player])) {
                     switch (playerStates[player]) {
                       case "CmnActHighGuardLoop":
@@ -284,10 +294,12 @@
 
                     if (newPlayerState.blockstun) {
                       newPlayerState.state = playerStates[player];
+                      /* 
                       console.log(`${this.contactFrames[player].frame
                          + BLOCKSTUN[this.contactFrames[player].attackLevel]
                          + HITSTOP[this.contactFrames[player].attackLevel]
                          + (SPECIAL_HITSTOP[this.contactFrames[player].attackerState] ?? 0)} >= ${currentFrame}`);
+                      */
                     } else {
                       newPlayerState.state = "ProximityGuard";
                     };
@@ -319,13 +331,13 @@
                 this.contactFrames[0].frame = response.data.current_frame;
                 this.contactFrames[0].attackLevel = response.data.attack_level;
                 this.contactFrames[0].attackerState = `${response.data.game_state.player_2.character}_${response.data.attacker_state}`;
+                this.contactFrames[0].attackGuardType = response.data.attack_guard_type;
               } else if (response.data.victim === "Player2") {
                 this.contactFrames[1].frame = response.data.current_frame;
                 this.contactFrames[1].attackLevel = response.data.attack_level;
                 this.contactFrames[1].attackerState = `${response.data.game_state.player_1.character}_${response.data.attacker_state}`;
+                this.contactFrames[1].attackGuardType = response.data.attack_guard_type;
               }
-              
-              console.log(response);
               break;
               
             case "ggxrd_roundStartEvent":
