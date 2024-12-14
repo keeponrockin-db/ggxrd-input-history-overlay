@@ -40,7 +40,7 @@
   }
 
   .hit {
-    background-color: red;
+    background-color: firebrick;
   }
   
   .down {
@@ -52,8 +52,12 @@
     font-size: 0;
   }
 
+  .hitstop {
+    filter: brightness(120%);
+  }
+
   .contact {
-    filter: brightness(60%);
+    filter: brightness(200%);
   }
   
   .prev-state-history {
@@ -121,7 +125,7 @@
 
   const NEUTRAL_STATES = [
     "CmnActStand", "CmnActStandTurn",
-    "CmnActBWalk", "CmnActFWalk", 
+    "CmnActBWalk", "CmnActFWalk",
     "CmnActFDashStop",
     "CmnActStand2Crouch", "CmnActCrouch2Stand", "CmnActCrouch", 
     "CrouchBWalk", "CrouchFWalk",
@@ -131,9 +135,12 @@
     "CmnActHighGuardEnd",
     "CmnActMidGuardEnd",
     "CmnActCrouchGuardEnd",
-    "CmnActAirGuardEnd",
-    "ProximityGuard"
+    "CmnActAirGuardEnd"
   ];
+
+  const RECOVERY_STATES = [
+    "CmnActJumpLanding"
+  ]
 
   const BLOCK_STATES = [
     "CmnActHighGuardLoop",
@@ -181,6 +188,10 @@
             cssClass += " down";
           }
 
+          if (frame.hitstop > 0) {
+            cssClass += " hitstop";
+          }
+
           if (frame.hitstun > 0) {
             cssClass += " hit";
           }
@@ -217,7 +228,11 @@
               let wakeUpFrame = (prevStates[0] && DOWN_STATES.includes(prevStates[0].state)) || (prevStates[1] && DOWN_STATES.includes(prevStates[1].state));
 
               if (!wakeUpFrame) {
-                this.recordFrames = this.recordFrames && !(NEUTRAL_STATES.includes(playerData[0].state) && NEUTRAL_STATES.includes(playerData[1].state));
+                this.recordFrames = this.recordFrames && 
+                  !(
+                    (NEUTRAL_STATES.includes(playerData[0].state) || RECOVERY_STATES.includes(playerData[0].state)) && 
+                    (NEUTRAL_STATES.includes(playerData[1].state) || RECOVERY_STATES.includes(playerData[1].state))
+                  );
               }
 
               [0, 1].forEach((player) => {
@@ -226,7 +241,7 @@
                   this.stateHistory[player] = [];
                 }
 
-                if (!NEUTRAL_STATES.includes(playerData[player].state)) {
+                if (!(NEUTRAL_STATES.includes(playerData[player].state) || RECOVERY_STATES.includes(playerData[player].state))) {
                   if (!this.recordFrames) {
                     this.stateHistory = [[], []];
                     this.prevStateHistory = [[], []];
