@@ -1,6 +1,8 @@
 # ggxrd-input-history-overlay
 This app recreates GGXrd's input history display in a web app, so you can view live input history data outside of training mode and replays. The app can be directly imported as a local browser source in OBS to look seamless on any streams or recordings. 
 
+![Sample image of input history and frame meter overlays in obs](docs/sample.png)
+
 ## Prerequisites 
 
 You must install Pangaea's mod (https://github.com/super-continent/ggxrd-mod/) before running this app.
